@@ -19,6 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <title>Highlevel Bulk Actions</title>
+      </head>
       <body className={`${inter.className} text-gray-800`}>
         <div className="flex flex-col min-h-screen max-w-[1280px] mx-auto">
           <header className="border-b border-gray-200 py-4">
