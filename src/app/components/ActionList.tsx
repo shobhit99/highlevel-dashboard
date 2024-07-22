@@ -189,6 +189,9 @@ const ActionList: React.FC = () => {
                     rowData={filteredActions}
                     pagination={true}
                     paginationPageSize={10}
+                    enableRangeSelection={true}
+                    enableCellTextSelection={true}
+                    suppressRowClickSelection={true}
                 />
             </div>
         </div>

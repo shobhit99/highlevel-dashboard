@@ -30,15 +30,9 @@ export default function RootLayout({
                 <nav>
                   <ul className="flex space-x-8">
                     <li>
-                      <Link href="/dashboard" className="text-gray-800 hover:text-gray-600 transition-colors duration-200 font-medium flex items-center">
+                      <Link href="/" className="text-gray-800 hover:text-gray-600 transition-colors duration-200 font-medium flex items-center">
                         <ChartBarIcon className="w-5 h-5 mr-2" />
                         Dashboard
-                      </Link>
-                    </li>
-                    <li>
-                      <Link href="/logs" className="text-gray-800 hover:text-gray-600 transition-colors duration-200 font-medium flex items-center">
-                        <ClipboardDocumentListIcon className="w-5 h-5 mr-2" />
-                        Logs
                       </Link>
                     </li>
                   </ul>

@@ -4,3 +4,9 @@ export enum BulkActionStatus {
     PENDING = 'pending',
     SCHEDULED = 'scheduled'
 }
+
+export enum LogStatus {
+    queued = 'queued',
+    skipped = 'skipped',
+    failed = 'failed'
+}

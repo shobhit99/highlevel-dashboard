@@ -1,14 +1,22 @@
 'use client'
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useParams } from 'next/navigation';
 import axios from 'axios';
 import { CalendarIcon, ClockIcon } from '@heroicons/react/24/outline';
 import { useDispatch, useSelector } from 'react-redux';
 import { RootState } from '../../../../store';
-import { updateBulkAction } from '../../../../store/features/bulk-actions/bulkActionSlice';
-import Pusher from 'pusher-js'
+import { updateBulkAction, setBulkActions } from '../../../../store/features/bulk-actions/bulkActionSlice';
+import Pusher from 'pusher-js';
 import { IBulkAction } from '@/app/interface';
+import { AgGridReact } from 'ag-grid-react';
+import 'ag-grid-community/styles/ag-grid.css';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
+import { LogStatus } from '@/app/ActionListEnum';
+import { Input, Tabs } from 'antd';
+
+const { Search } = Input;
+const { TabPane } = Tabs;
 
 const ActionDetails: React.FC = () => {
     const dispatch = useDispatch();
@@ -17,14 +25,51 @@ const ActionDetails: React.FC = () => {
     const actionDetails = useSelector((state: RootState) =>
         state.bulkActions.bulkActions.find(action => action.actionId === actionId)
     );
+    const allActions = useSelector((state: RootState) => state.bulkActions.bulkActions);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [rowData, setRowData] = useState<any[]>([]);
+    const [filteredRowData, setFilteredRowData] = useState<any[]>([]);
+
+    const columnDefs = useMemo(() => [
+        // { headerName: 'Action ID', field: 'action_id', sortable: true, filter: true, flex: 1 },
+        { headerName: 'Identifier', field: 'identifier', sortable: true, filter: true, flex: 1 },
+        {
+            headerName: 'Status',
+            field: 'status',
+            sortable: true,
+            filter: true,
+            cellRenderer: (params: any) => {
+                const status = params.value;
+                const getStatusColor = (status: LogStatus) => {
+                    switch (status) {
+                        case LogStatus.queued: return 'bg-yellow-100 text-yellow-800';
+                        case LogStatus.skipped: return 'bg-green-100 text-green-800';
+                        case LogStatus.failed: return 'bg-red-100 text-red-800';
+                        default: return 'bg-gray-100 text-gray-800';
+                    }
+                };
+                return (
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(status)}`}>
+                        {status}
+                    </span>
+                );
+            }
+        },
+        { headerName: 'Created At', field: 'created_at', sortable: true, filter: true },
+    ], []);
 
     useEffect(() => {
         const fetchActionDetails = async () => {
             try {
                 const response = await axios.get(`${process.env.NEXT_PUBLIC_BACKEND_URL}/bulk-action/${actionId}`);
-                dispatch(updateBulkAction(response.data));
+                const fetchedAction = response.data;
+                dispatch(updateBulkAction(fetchedAction));
+
+                if (allActions.length === 0) {
+                    dispatch(setBulkActions([fetchedAction]));
+                }
+
                 setLoading(false);
             } catch (err) {
                 setError('Failed to fetch action details');
@@ -38,7 +83,6 @@ const ActionDetails: React.FC = () => {
             cluster: process.env.NEXT_PUBLIC_PUSHER_CLUSTER!
         });
 
-
         const channel = pusher.subscribe('bulk-action');
         channel.bind('bulk-action-updated', (data: { bulkAction: IBulkAction }) => {
             if (data.bulkAction.actionId === actionId) {
@@ -46,11 +90,43 @@ const ActionDetails: React.FC = () => {
             }
         });
 
+        const eventSource = new EventSource(`${process.env.NEXT_PUBLIC_BACKEND_URL}/logging/${actionId}/logs`);
+
+        eventSource.onmessage = (event) => {
+            const logData = JSON.parse(event.data);
+            setRowData((prevData) => {
+                const newData = [...prevData, logData];
+                setFilteredRowData(newData);
+                return newData;
+            });
+        };
+
+        eventSource.onerror = (error) => {
+            eventSource.close();
+        };
+
         return () => {
             channel.unbind_all();
             channel.unsubscribe();
+            eventSource.close();
         };
     }, [actionId, dispatch]);
+
+    const onSearch = (value: string) => {
+        const filtered = rowData.filter(row =>
+            row.identifier.toLowerCase().includes(value.toLowerCase())
+        );
+        setFilteredRowData(filtered);
+    };
+
+    const onTabChange = (key: string) => {
+        if (key === 'all') {
+            setFilteredRowData(rowData);
+        } else {
+            const filtered = rowData.filter(row => row.status === key);
+            setFilteredRowData(filtered);
+        }
+    };
 
     if (loading) return <div className="text-center py-8">Loading...</div>;
     if (error) return <div className="text-center py-8 text-red-500">{error}</div>;
@@ -88,7 +164,7 @@ const ActionDetails: React.FC = () => {
                     </span>
                 </div>
             </div>
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid grid-cols-3 gap-4 mb-6">
                 <DetailItem
                     label="Action ID"
                     value={
@@ -139,6 +215,30 @@ const ActionDetails: React.FC = () => {
                             {actionDetails.successCount ?? 'N/A'}
                         </span>
                     }
+                />
+            </div>
+            <div className="flex justify-between mb-0">
+                <Search
+                    placeholder="Search by Idnetifier"
+                    onSearch={onSearch}
+                    style={{ width: 300 }}
+                />
+                <Tabs defaultActiveKey="all" onChange={onTabChange}>
+                    <TabPane tab="All" key="all" />
+                    <TabPane tab="Queued" key={LogStatus.queued} />
+                    <TabPane tab="Skipped" key={LogStatus.skipped} />
+                    <TabPane tab="Failed" key={LogStatus.failed} />
+                </Tabs>
+            </div>
+            <div className="ag-theme-alpine" style={{ height: 400, width: '100%' }}>
+                <AgGridReact
+                    columnDefs={columnDefs}
+                    rowData={filteredRowData}
+                    animateRows={true}
+                    rowSelection='multiple'
+                    enableRangeSelection={true}
+                    enableCellTextSelection={true}
+                    suppressRowClickSelection={true}
                 />
             </div>
         </div>
