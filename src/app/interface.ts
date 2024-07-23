@@ -11,4 +11,5 @@ export interface IBulkAction {
     skippedCount: number | null;
     failedCount: number | null;
     successCount: number | null;
+    completedAt: string | null;
 }

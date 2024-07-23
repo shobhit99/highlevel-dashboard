@@ -150,14 +150,36 @@ const ActionDetails: React.FC = () => {
         navigator.clipboard.writeText(text);
     };
 
+    const getTimeTaken = () => {
+        if (actionDetails.status === 'completed' && actionDetails.completedAt) {
+            const start = new Date(actionDetails.createdAt).getTime();
+            const end = new Date(actionDetails.completedAt).getTime();
+            const timeTakenMs = end - start;
+            if (timeTakenMs < 60000) {
+                const seconds = Math.round(timeTakenMs / 1000);
+                return `${seconds} second${seconds !== 1 ? 's' : ''}`;
+            } else {
+                const minutes = Math.round(timeTakenMs / 60000);
+                return `${minutes} minute${minutes !== 1 ? 's' : ''}`;
+            }
+        }
+        return null;
+    };
+
     return (
         <div className="bg-white [box-shadow:0_0_0_1px_rgba(0,0,0,.03),0_2px_4px_rgba(0,0,0,.05),0_12px_24px_rgba(0,0,0,.05)] rounded-lg p-6 mx-auto mt-8 w-full">
             <div className="flex justify-between items-center mb-6">
                 <h1 className="text-2xl font-bold">Action Details</h1>
                 <div className="flex space-x-4">
+                    {actionDetails.status === 'completed' && getTimeTaken() && (
+                        <span className="px-3 py-1 rounded-full text-sm bg-blue-100 text-blue-800 flex items-center">
+                            <ClockIcon className="w-4 h-4 mr-1" />
+                            Time Taken: {getTimeTaken()}
+                        </span>
+                    )}
                     <span className="px-3 py-1 rounded-full text-sm bg-gray-100 text-gray-800 flex items-center">
                         <CalendarIcon className="w-4 h-4 mr-1" />
-                        {new Date(actionDetails.createdAt).toLocaleDateString()}
+                        {new Date(actionDetails.createdAt).toLocaleString()}
                     </span>
                     <span className={`px-3 py-1 rounded-full text-sm ${getStatusColor(actionDetails.status)}`}>
                         {actionDetails.status}
